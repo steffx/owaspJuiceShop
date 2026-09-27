@@ -1,0 +1,95 @@
+name: Security suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 5 * * 1' # weekly regression run
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Security regression against Juice Shop
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      juice-shop:
+        # Intentionally vulnerable OWASP training app, run only as the system under test.
+        image: bkimminich/juice-shop:v17.1.1
+        ports:
+          - 3000:3000
+        options: >-
+          --health-cmd "wget -qO- http://localhost:3000/rest/admin/application-version || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      JUICE_SHOP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Wait for Juice Shop
+        run: node scripts/wait-for-juice.js
+
+      # All tests use Playwright's API request context, so no browser download is needed.
+      - name: Run unit, functional, security and coverage suites
+        run: npx playwright test
+
+      - name: Build security dashboard
+        if: always()
+        run: npm run dashboard
+
+      - name: Add summary
+        if: always()
+        run: |
+          node -e '
+            const fs = require("fs");
+            const cov = fs.existsSync("results/coverage.json") ? JSON.parse(fs.readFileSync("results/coverage.json")) : null;
+            const findings = fs.existsSync("results/findings.jsonl") ? fs.readFileSync("results/findings.jsonl","utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : [];
+            const detected = findings.filter(f => f.detected);
+            console.log(`### Security regression\n`);
+            console.log(`- Checks run: ${findings.length}`);
+            console.log(`- Weaknesses observed on target: ${detected.length}`);
+            if (cov) console.log(`- Focus areas exercised: ${cov.areasExercised}/${cov.areasTotal} · score board challenges: ${cov.totalChallenges}`);
+          ' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-report
+          path: |
+            playwright-report/
+            results/
+            site/
+          retention-days: 14
+
+      - name: Upload dashboard for GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Publish dashboard
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
