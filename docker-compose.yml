@@ -7,8 +7,5 @@ services:
       - '3000:3000'
     environment:
       - NODE_ENV=unsafe
-    healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/rest/admin/application-version']
-      interval: 5s
-      timeout: 3s
-      retries: 20
+    # Readiness is polled from the host by scripts/wait-for-juice.js (npm run juice:up),
+    # since the image ships no wget/curl for an in-container healthcheck.

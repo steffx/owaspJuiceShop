@@ -20,14 +20,11 @@ jobs:
     services:
       juice-shop:
         # Intentionally vulnerable OWASP training app, run only as the system under test.
+        # No in-container healthcheck: the image ships no wget/curl, so readiness is polled
+        # from the runner by scripts/wait-for-juice.js instead.
         image: bkimminich/juice-shop:v17.1.1
         ports:
           - 3000:3000
-        options: >-
-          --health-cmd "wget -qO- http://localhost:3000/rest/admin/application-version || exit 1"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 30
     env:
       JUICE_SHOP_URL: http://localhost:3000
     steps:
