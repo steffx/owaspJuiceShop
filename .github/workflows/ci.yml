@@ -42,6 +42,29 @@ jobs:
       - name: Run unit, functional, security and coverage suites
         run: npx playwright test
 
+      - name: Summarize any test failures
+        if: failure()
+        run: |
+          node -e '
+            const fs = require("fs");
+            if (!fs.existsSync("results/results.json")) { console.log("No results.json produced."); process.exit(0); }
+            const report = JSON.parse(fs.readFileSync("results/results.json", "utf8"));
+            const fails = [];
+            (function walk(suites = []) {
+              for (const s of suites) {
+                for (const spec of s.specs ?? []) for (const t of spec.tests) {
+                  if (t.status !== "expected" && t.status !== "skipped") {
+                    const err = (t.results?.at(-1)?.error?.message || "").split("\n").slice(0, 3).join(" ").slice(0, 300);
+                    fails.push(`- **${spec.title}** — ${err}`);
+                  }
+                }
+                walk(s.suites);
+              }
+            })(report.suites);
+            console.log(`### Failing tests (${fails.length})\n`);
+            console.log(fails.join("\n") || "None parsed.");
+          ' >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build security dashboard
         if: always()
         run: npm run dashboard

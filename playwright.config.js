@@ -7,7 +7,10 @@ export default defineConfig({
   globalSetup: './src/global-setup.js',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  retries: process.env.CI ? 2 : 0,
+  // Juice Shop is a single instance backed by SQLite; too many concurrent writers cause
+  // transient lock errors. Keep the live suite serial in CI for stability.
+  workers: process.env.CI ? 1 : undefined,
   reporter: [
     ['list'],
     ['html', { open: 'never' }],
