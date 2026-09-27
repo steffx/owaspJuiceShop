@@ -1,0 +1,31 @@
+{
+  "name": "juice-shop-testing",
+  "version": "1.0.0",
+  "description": "Security regression suite for OWASP Juice Shop: access control, security headers, authentication and data-exposure checks with Playwright, plus score board coverage",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:unit": "playwright test --project=unit",
+    "test:security": "playwright test --project=security",
+    "test:functional": "playwright test --project=functional",
+    "test:coverage": "playwright test --project=coverage",
+    "juice:up": "docker compose up -d && node scripts/wait-for-juice.js",
+    "juice:down": "docker compose down",
+    "dashboard": "node src/report/build-dashboard.js",
+    "report": "playwright show-report"
+  },
+  "keywords": [
+    "security-testing",
+    "owasp",
+    "juice-shop",
+    "playwright",
+    "access-control",
+    "api-security",
+    "qa-automation"
+  ],
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

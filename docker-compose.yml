@@ -1,0 +1,14 @@
+# OWASP Juice Shop as the system under test.
+# The image is intentionally vulnerable and is meant to be run locally or in CI for testing only.
+services:
+  juice-shop:
+    image: bkimminich/juice-shop:v17.1.1
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=unsafe
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/rest/admin/application-version']
+      interval: 5s
+      timeout: 3s
+      retries: 20
